@@ -2,6 +2,9 @@
  * Welcome to ng2tree
  */
 
+export interface IAllowDropFn {
+  (element:any, to:{parent:ITreeNode, index:number}):boolean;
+}
 /**
 * This is the interface of the options input of the tree.
 * See docs for more detailed explanations
@@ -36,9 +39,21 @@ export interface ITreeOptions {
     */
    actionMapping?: any;
    /**
-    * Allow drag and drop on the tree. Default: false
+    * Allow dragging tree nodes. Default: false
     */
    allowDrag?: boolean;
+   /**
+    * Allow drop on the tree.
+    * Either boolean value, or a function that takes the dragged element and drop location (parent, index)
+    * and returns a boolean value.
+    * Will be called when dragging over the nodes or between nodes, and allow to prevent the drop style
+    * Default: true
+    */
+   allowDrop?: boolean | IAllowDropFn;
+   /**
+   * Specify padding per node instead of children padding (to allow full row select for example)
+   */
+   levelPadding?: number;
    /**
     * deprecated
     */
@@ -146,6 +161,11 @@ export interface ITreeNode {
    * @returns previous node.
    */
   findPreviousNode(skipHidden): ITreeNode;
+
+  /**
+   * @returns      true if this node is a descendant of the parameter node
+   */
+  isDescendantOf(node:ITreeNode):boolean;
 
   // actions
   /**
@@ -263,8 +283,14 @@ export interface ITreeModel {
    * @param location  has a from and a to attributes, each has a node and index attributes.
      The combination of node + index tells which node needs to be moved, and to where
    */
-  moveNode(location:{ from:{node:ITreeNode, index:number}, to:{node:ITreeNode, index:number} });
+  moveNode(node:ITreeNode, to:{node:ITreeNode, index:number});
 
+}
+
+/**
+ * This is the interface of the TreeNodeDrag service
+ */
+export interface ITreeNodeDrag {
   /**
    * Gets the current dragged node. Useful for overriding the drop action.
    * @param node  The parent node of the current dragged node

@@ -16,15 +16,16 @@ export const TREE_ACTIONS = {
   SELECT: (tree:TreeModel, node:TreeNode, $event:any) => node.setIsActive(true),
   DESELECT: (tree:TreeModel, node:TreeNode, $event:any) => node.setIsActive(false),
   FOCUS: (tree:TreeModel, node:TreeNode, $event:any) => node.focus(),
-  TOGGLE_EXPANDED: (tree:TreeModel, node:TreeNode, $event:any) => node.toggleExpanded(),
+  TOGGLE_EXPANDED: (tree:TreeModel, node:TreeNode, $event:any) => node.hasChildren && node.toggleExpanded(),
   EXPAND: (tree:TreeModel, node:TreeNode, $event:any) => node.expand(),
   COLLAPSE: (tree:TreeModel, node:TreeNode, $event:any) => node.collapse(),
   DRILL_DOWN: (tree:TreeModel, node:TreeNode, $event:any) => tree.focusDrillDown(),
   DRILL_UP: (tree:TreeModel, node:TreeNode, $event:any) => tree.focusDrillUp(),
   NEXT_NODE: (tree:TreeModel, node:TreeNode, $event:any) =>  tree.focusNextNode(),
   PREVIOUS_NODE: (tree:TreeModel, node:TreeNode, $event:any) =>  tree.focusPreviousNode(),
-  MOVE_NODE: (tree:TreeModel, node:TreeNode, $event:any, to:{ node:TreeNode, index: number }) => {
-    tree.moveNode({ from: tree.getDragNode(), to });
+  MOVE_NODE: (tree:TreeModel, node:TreeNode, $event:any, {from , to}:{from:any, to:any}) => {
+    // default action assumes from = node, to = {parent, index}
+    tree.moveNode(from, to);
   }
 }
 
@@ -75,6 +76,7 @@ export class TreeOptions {
   get hasCustomContextMenu(): boolean { return this.options.hasCustomContextMenu }
   get context(): any { return this.options.context }
   get allowDrag(): boolean { return this.options.allowDrag }
+  get levelPadding(): number { return this.options.levelPadding || 0 }
   actionMapping: IActionMapping;
 
   constructor(private options:ITreeOptions = {}) {
@@ -106,6 +108,14 @@ export class TreeOptions {
 
     if (get(options, 'mouse.alt')) {
       deprecated('mouse.alt', '$event.altKey in click action instead');
+    }
+  }
+  allowDrop(element, to):boolean {
+    if (this.options.allowDrop instanceof Function) {
+      return this.options.allowDrop(element, to);
+    }
+    else {
+      return this.options.allowDrop === undefined ? true : this.options.allowDrop;
     }
   }
 }

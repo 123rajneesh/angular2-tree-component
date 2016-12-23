@@ -69,7 +69,7 @@ export class TreeNode implements ITreeNode {
 
   // traversing:
   _findAdjacentSibling(steps, skipHidden = false) {
-    const index = this._getIndexInParent(skipHidden);
+    const index = this.getIndexInParent(skipHidden);
     return this._getParentsChildren(skipHidden)[index + steps];
   }
 
@@ -125,7 +125,7 @@ export class TreeNode implements ITreeNode {
     return children || [];
   }
 
-  private _getIndexInParent(skipHidden = false) {
+  private getIndexInParent(skipHidden = false) {
     return this._getParentsChildren(skipHidden).indexOf(this);
   }
 
@@ -144,6 +144,12 @@ export class TreeNode implements ITreeNode {
         if (children) {
           this.setField('children', children);
           this._initChildren();
+          this.children.forEach((child) => {
+            if (child.getField('isExpanded') && child.hasChildren) {
+              child.expand();
+            }
+          });
+
         }
       });
   }
@@ -292,11 +298,6 @@ export class TreeNode implements ITreeNode {
       if (actionName === 'dblClick') {
         this.fireEvent({ eventName: TREE_EVENTS.onDoubleClick, warning: 'This event is deprecated, please use actionMapping to handle double clicks', node: this, rawEvent: $event });
       }
-    }
-
-    // TODO: move to the action itself:
-    if (actionName === 'drop') {
-      this.treeModel.cancelDrag();
     }
   }
 

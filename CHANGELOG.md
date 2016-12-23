@@ -1,3 +1,35 @@
+<a name="2.5.1"></a>
+# 2.5.1 (2016-12-21)
+* Updated PeerDeps to allow for Angular 2.3
+
+<a name="2.5.0"></a>
+# 2.5.0 (2016-12-01)
+* Added treeAllowDrop to treeDrop directive
+* Added option allowDrop
+
+<a name="2.4.0"></a>
+# 2.4.0 (2016-11-28)
+* Added levelPadding option
+* Fix bug - async children isExpanded field is taken into account
+
+<a name="2.3.0"></a>
+# 2.3.0 (2016-11-28)
+* Breaking change - changed drop action from parameter, to be just the node, without parent & index
+* Breaking change - changed moveNode API to accept just the node, without parent & index
+* Breaking change - changed onMoveNode event to include the original nodes instead of TreeNode
+
+<a name="2.2.0"></a>
+# 2.2.0 (2016-11-27)
+* Allow drag between trees
+* Made treeDrop directive for dragging outside tree
+* Made treeDrag directive for dragging external elements into the tree
+
+<a name="2.1.0"></a>
+# 2.1.0 (2016-11-24)
+* Added AoT metadata
+* Added CLI example
+* Fixed alignment of childless nodes. Again.
+
 <a name="2.0.1"></a>
 # 2.0.1 (2016-11-24)
 * Fixed alignment of childless nodes

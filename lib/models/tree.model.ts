@@ -7,7 +7,7 @@ import { TREE_EVENTS } from '../constants/events';
 
 import { deprecated } from '../deprecated';
 
-import * as _ from 'lodash';
+import { first, last, compact, find, includes, remove, indexOf, pullAt, isString, isFunction } from 'lodash';
 
 @Injectable()
 export class TreeModel implements ITreeModel {
@@ -20,8 +20,6 @@ export class TreeModel implements ITreeModel {
   activeNodes: TreeNode[];
   _focusedNode: TreeNode = null;
   focusedNodeId: string = null;
-  _dragNode: { node: TreeNode, index: number } = null;
-  _dropLocation:{ component:any, node: TreeNode, index: number } = null;
   static focusedTree = null;
   private events: any;
   virtualRoot: TreeNode;
@@ -116,11 +114,11 @@ export class TreeModel implements ITreeModel {
   }
 
   getFirstRoot(skipHidden = false) {
-    return _.first(skipHidden ? this.getVisibleRoots() : this.roots);
+    return first(skipHidden ? this.getVisibleRoots() : this.roots);
   }
 
   getLastRoot(skipHidden = false) {
-    return _.last(skipHidden ? this.getVisibleRoots() : this.roots);
+    return last(skipHidden ? this.getVisibleRoots() : this.roots);
   }
 
   get isFocused() {
@@ -167,12 +165,12 @@ export class TreeModel implements ITreeModel {
     this.expandedNodes = Object.keys(this.expandedNodeIds)
       .filter((id) => this.expandedNodeIds[id])
       .map((id) => this.getNodeById(id))
-    this.expandedNodes = _.compact(this.expandedNodes);
+    this.expandedNodes = compact(this.expandedNodes);
 
     this.activeNodes = Object.keys(this.activeNodeIds)
       .filter((id) => this.expandedNodeIds[id])
       .map((id) => this.getNodeById(id))
-    this.activeNodes = _.compact(this.activeNodes);
+    this.activeNodes = compact(this.activeNodes);
   }
 
   getNodeByPath(path, startNode=null):TreeNode {
@@ -184,7 +182,7 @@ export class TreeModel implements ITreeModel {
     if (!startNode.children) return null;
 
     const childId = path.shift();
-    const childNode = _.find(startNode.children, { [this.options.idField]: childId });
+    const childNode = find(startNode.children, { [this.options.idField]: childId });
 
     if (!childNode) return null;
 
@@ -200,7 +198,7 @@ export class TreeModel implements ITreeModel {
 
     if (!startNode.children) return null;
 
-    const found = _.find(startNode.children, predicate);
+    const found = find(startNode.children, predicate);
 
     if (found) { // found in children
       return found;
@@ -297,12 +295,12 @@ export class TreeModel implements ITreeModel {
   _setActiveNodeMulti(node, value) {
     this.activeNodeIds[node.id] = value;
     if (value) {
-      if (!_.includes(this.activeNodes, node)) {
+      if (!includes(this.activeNodes, node)) {
         this.activeNodes.push(node);
       }
     } else {
-      if (_.includes(this.activeNodes, node)) {
-        _.remove(this.activeNodes, node);
+      if (includes(this.activeNodes, node)) {
+        remove(this.activeNodes, node);
       }
     }
   }
@@ -312,10 +310,10 @@ export class TreeModel implements ITreeModel {
   }
 
   setExpandedNode(node, value) {
-    const index = _.indexOf(this.expandedNodes, node);
+    const index = indexOf(this.expandedNodes, node);
 
     if (value && !index) this.expandedNodes.push(node);
-    else if (index) _.pullAt(this.expandedNodes, index);
+    else if (index) pullAt(this.expandedNodes, index);
 
     this.expandedNodeIds[node.id] = value;
   }
@@ -338,10 +336,10 @@ export class TreeModel implements ITreeModel {
       return this.clearFilter();
     }
 
-    if (_.isString(filter)) {
+    if (isString(filter)) {
       filterFn = (node) => node.displayField.toLowerCase().indexOf(filter.toLowerCase()) != -1
     }
-    else if (_.isFunction(filter)) {
+    else if (isFunction(filter)) {
        filterFn = filter;
     }
     else {
@@ -355,68 +353,41 @@ export class TreeModel implements ITreeModel {
     this.roots.forEach((node) => node.clearFilter());
   }
 
-  canMoveNode({ from, to }) {
+  private _canMoveNode(node, fromIndex, to) {
     // same node:
-    if (from.node === to.node && from.index === to.index) {
+    if (node.parent === to.parent && fromIndex === to.index) {
       return false;
     }
 
-    const fromChildren = from.node.children;
-    const fromNode = fromChildren[from.index];
-
-    return !to.node.isDescendantOf(fromNode);
+    return !to.parent.isDescendantOf(node);
   }
 
-  moveNode({ from, to }) {
-    if (!this.canMoveNode({ from , to })) return;
+  moveNode(node, to) {
+    const fromIndex = node.getIndexInParent();
+    const fromParent = node.parent;
 
-    const fromChildren = from.node.getField('children');
+    if (!this._canMoveNode(node, fromIndex , to)) return;
+
+    const fromChildren = fromParent.getField('children');
 
     // If node doesn't have children - create children array
-    if (!to.node.getField('children')) {
-      to.node.setField('children', []);
+    if (!to.parent.getField('children')) {
+      to.parent.setField('children', []);
     }
-    const toChildren = to.node.getField('children');
+    const toChildren = to.parent.getField('children');
 
-    const node = fromChildren.splice(from.index, 1)[0];
+    const originalNode = fromChildren.splice(fromIndex, 1)[0];
 
     // Compensate for index if already removed from parent:
-    let toIndex = (from.node === to.node && to.index > from.index) ? to.index - 1 : to.index;
+    let toIndex = (fromParent === to.parent && to.index > fromIndex) ? to.index - 1 : to.index;
 
-    toChildren.splice(toIndex, 0, node);
+    toChildren.splice(toIndex, 0, originalNode);
 
-    this.update();
+    fromParent.treeModel.update();
+    if (to.parent.treeModel !== fromParent.treeModel) {
+      to.parent.treeModel.update();
+    }
 
-    this.fireEvent({ eventName: TREE_EVENTS.onMoveNode, node, to });
-  }
-
-  // TODO: move to a different service:
-  setDragNode(dragNode:{ node: TreeNode, index:number }) {
-    this._dragNode = dragNode;
-  }
-
-  getDragNode():{ node: TreeNode, index:number } {
-    return this._dragNode || { node:null, index: null };
-  }
-
-  isDragging() {
-    return this.getDragNode().node;
-  }
-
-  setDropLocation(dropLocation: { component: any, node: TreeNode, index: number }) {
-    this._dropLocation = dropLocation;
-  }
-
-  getDropLocation(): { component: any, node: TreeNode, index: number } {
-    return this._dropLocation || {component: null, node: null, index: null};
-  }
-
-  isDraggingOver(component) {
-    return this.getDropLocation().component === component;
-  }
-
-  cancelDrag() {
-    this.setDropLocation(null);
-    this.setDragNode(null);
+    this.fireEvent({ eventName: TREE_EVENTS.onMoveNode, node: originalNode, to: { parent: to.parent.data, index: toIndex } });
   }
 }
